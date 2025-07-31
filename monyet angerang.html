@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Lagi Cari Om Om</title>
+  <link rel="icon" href="https://xyrootzz123.github.io/xyroo/icon5_6066697818779686621.webp" type="image/webp">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      overflow: hidden;
+      background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+        url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+    }
+
+    h2 {
+      color: #ffb6c1;
+      margin-top: 20px;
+    }
+
+    .scroll-container {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .scroll-item {
+      position: relative;
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+      border-radius: 15px;
+      padding: 10px;
+      min-width: 250px;
+      max-width: 80%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease;
+    }
+
+    .scroll-item:hover {
+      transform: scale(1.03);
+    }
+
+    .scroll-item img {
+      width: 100%;
+      border-radius: 15px;
+    }
+
+    .scroll-item .emot {
+      font-size: 32px;
+      margin-top: 10px;
+    }
+
+    .music-player {
+      margin: 20px 0;
+    }
+
+    .music-player button {
+      background-color: #e91e63;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .music-player button:hover {
+      background-color: #c2185b;
+    }
+
+    .firefly {
+      position: absolute;
+      font-size: 24px;
+      animation: glow 1s infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes glow {
+      from { opacity: 0.3; transform: scale(1); }
+      to   { opacity: 1; transform: scale(1.3); }
+    }
+  </style>
+</head>
+<body>
+  <h2>👀 Om Om Dimana?</h2>
+  <p style="color:#ffd1dc;">Lagi cari om om yang baik hati 💖</p>
+
+  <div class="music-player">
+    <audio id="audioPlayer" src="https://xyrootzz123.github.io/xyroo/pp.mp3"></audio>
+    <button onclick="playMusicAndEmoji()">🎵Musik</button>
+  </div>
+
+  <div class="scroll-container">
+    <div class="scroll-item"><div class="emot">🐵</div><img src="https://xyrootzz123.github.io/xyroo/bkp.png" alt="Foto Kenangan"></div>
+    <div class="scroll-item"><div class="emot">🐵</div><img src="https://xyrootzz123.github.io/xyroo/bkp.png" alt="Foto Kenangan"></div>
+    <div class="scroll-item"><div class="emot">🐵</div><img src="https://xyrootzz123.github.io/xyroo/bkp.png" alt="Foto Kenangan"></div>
+  </div>
+
+  <div class="scroll-container">
+    <div class="scroll-item"><div class="emot">🐵</div><img src="https://xyrootzz123.github.io/xyroo/bkp.png" alt="Foto Kenangan Lagi"></div>
+    <div class="scroll-item"><div class="emot">🐵</div><img src="https://xyrootzz123.github.io/xyroo/bkp.png" alt="Foto Kenangan Lagi"></div>
+    <div class="scroll-item"><div class="emot">🐵</div><img src="https://xyrootzz123.github.io/xyroo/bkp.png" alt="Foto Kenangan Lagi"></div>
+  </div>
+
+  <script>
+    function playMusicAndEmoji() {
+      document.getElementById("audioPlayer").play();
+    }
+
+    function createFirefly() {
+      const firefly = document.createElement('div');
+      firefly.classList.add('firefly');
+      firefly.innerText = '🙊';
+      document.body.appendChild(firefly);
+
+      function move() {
+        firefly.style.left = Math.random() * window.innerWidth + 'px';
+        firefly.style.top = Math.random() * window.innerHeight + 'px';
+      }
+
+      move();
+      setInterval(move, 3000);
+    }
+
+    for (let i = 0; i < 20; i++) {
+      createFirefly();
+    }
+  </script>
+</body>
+</html>
