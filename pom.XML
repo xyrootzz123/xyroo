@@ -1,0 +1,9 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.demo</groupId><artifactId>autoscreen</artifactId><version>1.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.telegram</groupId><artifactId>telegrambots</artifactId><version>6.9.7.1</version>
+    </dependency>
+  </dependencies>
+</project>
