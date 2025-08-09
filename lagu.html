@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cancer - MCR</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0e0e0e;
+      --card: #1b1b1b;
+      --muted: #b3b3b3;
+      --accent: #1db954;
+      --radius: 16px;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 2rem;
+    }
+    .player {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      max-width: 400px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 0 10px #00000080;
+    }
+    .cover {
+      border-radius: 12px;
+      width: 100%;
+      aspect-ratio: 1/1;
+      background-image: url("https://files.catbox.moe/9hcutm.jpg");
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 28%;
+    }
+    .lyric-display {
+      position: absolute;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 500;
+      text-align: center;
+      padding: 0 1rem;
+      line-height: 1.3;
+      text-shadow: 0 0 6px #000000cc;
+      opacity: 0;
+      transform: scale(0.95);
+      animation: fadeZoom 0.6s ease forwards;
+    }
+    @keyframes fadeZoom {
+      0% {
+        opacity: 0;
+        transform: scale(1.1) translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .title {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .playbtn {
+      width: 50px;
+      height: 50px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .playbtn svg {
+      fill: white;
+      width: 24px;
+      height: 24px;
+    }
+    .progress {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bar {
+      height: 6px;
+      background: #444;
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .filled {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+    }
+    .time {
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .credit {
+      margin-top: 1.2rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="player">
+    <div class="cover">
+      <div class="lyric-display" id="lyricLine">♪</div>
+    </div>
+    <div class="title">Cancer</div>
+    <div class="subtitle">My Chemical Romance</div>
+    <div class="controls">
+      <button class="playbtn" id="playPause" aria-label="Play/Pause">
+        <svg viewBox="0 0 24 24" id="icon">
+          <polygon points="5,3 19,12 5,21"></polygon>
+        </svg>
+      </button>
+      <div class="progress">
+        <div class="bar" id="progressBar">
+          <div class="filled" id="progressFilled"></div>
+        </div>
+        <div class="time">
+          <span id="current">0:00</span>
+          <span id="duration">0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="credit">Credit : @Hyrootz</div>
+  <audio id="audio" preload="metadata" style="display:none;">
+    <source src="https://raw.githubusercontent.com/MalvinUbot/MalvinUbot.github.io/main/cancer.mp3" type="audio/mpeg">
+  </audio>
+  <script>
+    const audio = document.getElementById("audio");
+    const playPauseBtn = document.getElementById("playPause");
+    const icon = document.querySelector("#icon polygon");
+    const progressBar = document.getElementById("progressBar");
+    const progressFilled = document.getElementById("progressFilled");
+    const currentEl = document.getElementById("current");
+    const durationEl = document.getElementById("duration");
+    const lyricLine = document.getElementById("lyricLine");
+    const lyrics = [
+      { time: 0.0, text: "Now turn away," },
+      { time: 4.0, text: "'Cause I'm awful just to see" },
+      { time: 8.0, text: "'Cause all my hairs abandoned all my body," },
+      { time: 12.0, text: "All my agony," },
+      { time: 17.0, text: "Know that I will never marry," },
+      { time: 21.0, text: "Baby, I'm just soggy from the chemo" },
+      { time: 25.0, text: "But counting down the days to go" },
+      { time: 30.0, text: "It just ain't living" },
+      { time: 33.0, text: "And I just hope you know" },
+      { time: 38.0, text: "That if you say (if you say)" },
+      { time: 41.0, text: "Goodbye today (goodbye today)" },
+      { time: 44.5, text: "I'd ask you to be true" },
+      { time: 50.5, text: "'Cause the hardest part of this is leaving you" }
+    ];
+    let lastLyric = "";
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+    function updateProgress() {
+      const ct = audio.currentTime;
+      const dur = audio.duration || 0;
+      currentEl.textContent = formatTime(ct);
+      durationEl.textContent = formatTime(dur);
+      if (dur > 0) progressFilled.style.width = (ct / dur * 100) + "%";
+      updateLyric(ct);
+    }
+    function updateLyric(time) {
+      let current = "";
+      for (let i = 0; i < lyrics.length; i++) {
+        if (time >= lyrics[i].time) current = lyrics[i].text;
+        else break;
+      }
+      if (current !== lastLyric) {
+        lyricLine.style.opacity = 0;
+        void lyricLine.offsetWidth; // trigger reflow
+        lyricLine.textContent = current;
+        lyricLine.style.animation = "fadeZoom 0.6s ease forwards";
+        lastLyric = current;
+      }
+    }
+    playPauseBtn.addEventListener("click", () => {
+      if (audio.paused) audio.play();
+      else audio.pause();
+    });
+    audio.addEventListener("play", () => {
+      icon.setAttribute("points","6,5 6,19 10,19 10,5 14,5 14,19 18,19 18,5");
+    });
+    audio.addEventListener("pause", () => {
+      icon.setAttribute("points","5,3 19,12 5,21");
+    });
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("loadedmetadata", updateProgress);
+    progressBar.addEventListener("click", e => {
+      const rect = progressBar.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      if (!isNaN(pct)) audio.currentTime = pct * audio.duration;
+    });
+  </script>
+</body>
+</html>
