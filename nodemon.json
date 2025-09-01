@@ -1,0 +1,3 @@
+{
+  "ignore": ["xyroodev", "node_modules", "database", "logs"]
+}
